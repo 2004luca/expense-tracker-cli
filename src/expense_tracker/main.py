@@ -58,6 +58,18 @@ def cmd_summary(args):
 
     print(f"\nTotal: ${total:.2f}")
 
+def cmd_remove(args):
+    expenses = load_expenses()
+    before = len(expenses)
+
+    expenses = [e for e in expenses if e["id"] != args.id]
+
+    if len(expenses) == before:
+        print("❌ Expense not found.")
+        return
+
+    save_expenses(expenses)
+    print(f"🗑️ Removed expense id={args.id}")
 
 def build_parser():
     parser = argparse.ArgumentParser(description="Expense Tracker CLI")
@@ -78,7 +90,16 @@ def build_parser():
     summary_parser = subparsers.add_parser("summary")
     summary_parser.set_defaults(func=cmd_summary)
 
+
+
+    # REMOVE
+    remove_parser = subparsers.add_parser("remove")
+    remove_parser.add_argument("id", type=int)
+    remove_parser.set_defaults(func=cmd_remove)
+    
     return parser
+
+
 
 
 def main():
@@ -93,3 +114,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
