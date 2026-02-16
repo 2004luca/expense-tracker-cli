@@ -1,4 +1,8 @@
 # 💸 Expense Tracker
+[![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://expense-tracker-cli.streamlit.app/)
+
+🌍 **Versão online:**  
+https://expense-tracker-cli.streamlit.app/
 
 Um projeto em Python para registrar despesas e visualizar resumo por categoria.
 
@@ -95,3 +99,4 @@ expense-tracker-cli/
 ```
 
 ---
+
