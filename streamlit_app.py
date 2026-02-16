@@ -1,23 +1,36 @@
 ﻿import streamlit as st
+from datetime import date
 
-from src.expense_tracker.expense import Expense
-from src.expense_tracker.storage import load_expenses, save_expenses
 from src.expense_tracker.reports import summary_by_category, total_amount
+from src.expense_tracker.database import (
+    init_db,
+    get_or_create_user,
+    add_expense_db,
+    list_expenses_db,
+    remove_expense_db,
+)
 
-
-def next_id(expenses: list[dict]) -> int:
-    if not expenses:
-        return 1
-    return max(e["id"] for e in expenses) + 1
-
-
+# Configuração da página
 st.set_page_config(page_title="Expense Tracker", page_icon="💸", layout="wide")
 
-st.title("💸 Expense Tracker (Streamlit)")
-st.caption("Registre despesas e veja resumo por categoria. Dados salvos em data/expenses.json")
+# Inicializa banco
+init_db()
 
-# Carrega dados
-expenses = load_expenses()
+st.title("💸 Expense Tracker (SQLite)")
+st.caption("Cada usuário possui suas próprias despesas.")
+
+# ---------- SIDEBAR (Usuário) ----------
+st.sidebar.header("👤 Usuário")
+username = st.sidebar.text_input("Digite seu nome de usuário")
+
+if not username:
+    st.warning("Digite um nome de usuário para começar.")
+    st.stop()
+
+user_id = get_or_create_user(username)
+
+# Carrega despesas do banco
+expenses = list_expenses_db(user_id)
 
 # ---------- SIDEBAR (Adicionar) ----------
 st.sidebar.header("➕ Adicionar despesa")
@@ -30,15 +43,14 @@ if st.sidebar.button("Adicionar", use_container_width=True):
     if not description.strip() or not category.strip():
         st.sidebar.error("Descrição e categoria são obrigatórias.")
     else:
-        exp = Expense.new(
-            expense_id=next_id(expenses),
+        add_expense_db(
+            user_id=user_id,
             amount=float(amount),
             description=description.strip(),
             category=category.strip(),
+            date_str=date.today().isoformat(),
         )
-        expenses.append(exp.to_dict())
-        save_expenses(expenses)
-        st.sidebar.success(f"Adicionado: #{exp.id} {exp.description} (${exp.amount:.2f})")
+        st.sidebar.success("Despesa adicionada.")
         st.rerun()
 
 # ---------- Layout principal ----------
@@ -66,21 +78,33 @@ with col2:
     if not expenses:
         st.info("Nenhuma despesa cadastrada.")
     else:
-        expenses_sorted = sorted(expenses, key=lambda e: e["id"], reverse=True)
-        st.dataframe(expenses_sorted, use_container_width=True, hide_index=True)
+        st.dataframe(expenses, use_container_width=True, hide_index=True)
 
         st.divider()
+
+
         st.subheader("🗑️ Remover despesa")
 
-        remove_id = st.number_input("ID para remover", min_value=1, step=1)
+# Criar lista formatada para o selectbox
+        options = [
+            f"{e['id']} - {e['description']} (${e['amount']:.2f})"
+            for e in expenses
+        ]
 
-        if st.button("Remover", type="primary"):
-            before = len(expenses)
-            updated = [e for e in expenses if e["id"] != int(remove_id)]
+        if options:
+            selected = st.selectbox("Selecione a despesa", options)
 
-            if len(updated) == before:
-                st.error("ID não encontrado.")
-            else:
-                save_expenses(updated)
-                st.success(f"Removido ID {int(remove_id)}")
+            if st.button("Remover", type="primary"):
+        # Extrai o ID da string (antes do primeiro espaço)
+                expense_id = int(selected.split(" - ")[0])
+
+                removed = remove_expense_db(user_id, expense_id)
+
+                if removed:
+                    st.success("Despesa removida.")
+                else:
+                    st.error("Erro ao remover.")
+
                 st.rerun()
+        else:
+            st.info("Nenhuma despesa para remover.")
